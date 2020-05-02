@@ -1,0 +1,177 @@
+---
+title: <center>Clusters on Glom and Tubular Patients</center>
+author: <center>Yang Li</center>
+date: <center>`r format(Sys.time(), '%m/%d/%Y')`</center>
+output: 
+  html_document:
+    toc: TRUE
+    toc_float: TRUE
+    number_sections: TRUE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+# Goal
+
+The primary goal is to generate a heatmap based on the gene expression count matrix and metadata (sample information) for glomerular and tubular patients, respectively. In each heatmap, patient clusters are also presented. 
+
+# Methods
+
+* Package DEseq2 is used to calculate sample-sample distances.
+* Package pheatmap is used to generate the heatmap of gene expressions. 
+* Package pheatmap is used to perform clustering on patients based on the sample-sample distance matrix. 
+
+# Glomerular Results
+
+## Data Description
+
+* Number of genes: 608
+* Number of samples: 89
+* Number of sample clusters: 4 (set manually)
+
+## Data Preprocessing
+
+* The sheet "Glom" in the Excel file is merged as an expression matrix (608 x 89).
+
+## Heatmap
+
+```{r,echo=F,eval=T,message=F,warning=F,error=F}
+setwd("/Users/liyang1/Box/OSU/DR-ALAMAANI/")
+Count.Mat <- read.csv("Glom_Count.csv", header = T, row.names = 1) # Read read count table in .csv file
+# into program
+Gene.Names <- rownames(Count.Mat)
+Gene.Names.Uniq <- unique(Gene.Names)
+
+# Check whether there exist duplicated gene names
+if (length(Gene.Names) != length(Gene.Names.Uniq))
+{
+  stop("Error: There exist duplicated gene names.")
+}
+
+# Check whether there exist duplicated sample names
+Sample.Names <- colnames(Count.Mat)
+Sample.Names.Uniq <- unique(Sample.Names)
+
+if (length(Sample.Names) != length(Sample.Names.Uniq))
+{
+  stop("Error: There exist duplicated sample names.")
+}
+
+Meta.Mat <- read.csv("Glom_Metadata.csv", header = T,row.names = 1) # Read meta data in .csv file
+
+if(length(Sample.Names) != length(rownames(Meta.Mat)))
+{
+  stop("Error: The number of samples in count matrix file and meta file is not consistent.")
+}
+
+library(DESeq2)
+
+dds.Obj <- DESeqDataSetFromMatrix(countData = Count.Mat, colData = Meta.Mat, design=~Time, tidy=F)
+# Transform the count matrix and metadata into dds object
+dds.Obj <- dds.Obj[rowSums(counts(dds.Obj))>1,]
+# Filter the data
+vsd <- varianceStabilizingTransformation(dds.Obj, blind = F) # Standardize the data
+Sample.Dist <- dist(t(assay(vsd))) # Calculate the distance between groups
+# hc <- hclust(Sample.Dist, method = "ward.D2") # Hierarchical clustering 
+library(pheatmap)
+list = pheatmap(mat = Sample.Dist, cluster_rows = T, cluster_cols = T, 
+         annotation_col = Meta.Mat)
+row_cluster = cutree(list$tree_row,k=4)
+
+```
+
+## Clustering Results
+
+```{r,echo=F,eval=T,message=F,warning=F,error=F}
+Cluster.Table <- data.frame(row_cluster, Meta.Mat[["Name"]])
+library("DT")
+datatable(Cluster.Table, colnames = c("ID", "Cluster", "Name"), 
+          extensions = c('FixedColumns','Buttons'), 
+          options = list(
+            pageLength = 15,
+            scrollX = TRUE,
+            scrollCollapse = TRUE,
+            dom = 'Bfrtip',
+            buttons = c('copy', 'csv', 'excel')
+          ))
+```
+
+# Tubular Results
+
+## Data Description
+
+* Number of genes: 598
+* Number of samples: 113
+Number of clusters: 4 (set manually)
+
+## Data Preprocessing
+
+* The sheet "Tubular" in the Excel file is merged as an expression matrix (598 x 113).
+* The first three samples "36AT", "1AT" and "38AT" are ruled out from analysis, since many genes are not expressed in the three samples.
+
+## Heatmap
+
+```{r,echo=F,eval=T,message=F,warning=F,error=F}
+setwd("/Users/liyang1/Box/OSU/DR-ALAMAANI/")
+Count.Mat <- read.csv("Tubular_No_Triple_Count.csv", header = T, row.names = 1) 
+# Read read count table in .csv file
+# into program
+Gene.Names <- rownames(Count.Mat)
+Gene.Names.Uniq <- unique(Gene.Names)
+
+# Check whether there exist duplicated gene names
+if (length(Gene.Names) != length(Gene.Names.Uniq))
+{
+  stop("Error: There exist duplicated gene names.")
+}
+
+# Check whether there exist duplicated sample names
+Sample.Names <- colnames(Count.Mat)
+Sample.Names.Uniq <- unique(Sample.Names)
+
+if (length(Sample.Names) != length(Sample.Names.Uniq))
+{
+  stop("Error: There exist duplicated sample names.")
+}
+
+Meta.Mat <- read.csv("Tubular_No_Triple_Metadata.csv", header = T,row.names = 1) 
+# Read meta data in .csv file
+
+if(length(Sample.Names) != length(rownames(Meta.Mat)))
+{
+  stop("Error: The number of samples in count matrix file and meta file is not consistent.")
+}
+
+library(DESeq2)
+
+dds.Obj <- DESeqDataSetFromMatrix(countData = Count.Mat, colData = Meta.Mat, design=~Time, tidy=F)
+# Transform the count matrix and metadata into dds object
+dds.Obj <- dds.Obj[rowSums(counts(dds.Obj))>1,]
+# Filter the data
+vsd <- varianceStabilizingTransformation(dds.Obj, blind = F) # Standardize the data
+Sample.Dist <- dist(t(assay(vsd))) # Calculate the distance between groups
+# hc <- hclust(Sample.Dist, method = "ward.D2") # Hierarchical clustering 
+library(pheatmap)
+list = pheatmap(mat = Sample.Dist, cluster_rows = T, cluster_cols = T, 
+         annotation_col = Meta.Mat)
+row_cluster = cutree(list$tree_row,k=4)
+
+```
+
+## Clustering Results
+
+```{r,echo=F,eval=T,message=F,warning=F,error=F}
+Cluster.Table <- data.frame(row_cluster, Meta.Mat[["Name"]])
+library("DT")
+datatable(Cluster.Table, colnames = c("ID", "Cluster", "Name"), 
+          extensions = c('FixedColumns','Buttons'), 
+          options = list(
+            pageLength = 15,
+            scrollX = TRUE,
+            scrollCollapse = TRUE,
+            dom = 'Bfrtip',
+            buttons = c('copy', 'csv', 'excel')
+          ))
+```
